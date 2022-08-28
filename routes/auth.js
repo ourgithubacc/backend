@@ -9,9 +9,10 @@ const {
   signout,
   apiAuth,
   sendVerificationCode,
-  resetPassword,
+  resetPassWord,
   forgotPassWord,
-  createNewPassWord
+  authMiddleWare,
+  
   
 } = require("../controllers/auth");
 
@@ -32,7 +33,7 @@ router.post(
   signup
 );
 
-//router.get("/verifyToken", verifyToken);
+router.get("/verifyToken", verifyToken);
 
 router.post(
   "/signin",
@@ -43,17 +44,18 @@ router.post(
       min: 6,
     }),
   ],
+  /*authMiddleWare*/
   signin
 );
 
 //router.put("/sendverificationcode",  sendVerificationCode);
-//router.put("/resetpassword",  resetPassword);
+router.put("/resetpassword/:userId/:token",  resetPassWord);
 
 
 router.get("/signout",  signout);
 
 router.route('/forgotPassWord').post(forgotPassWord)
-router.route('/createNewPassWord/:userId').post(createNewPassWord)
+//router.route('/createNewPassWord/:userId').post(createNewPassWord)
 
 module.exports = router;
 

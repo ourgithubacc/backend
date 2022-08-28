@@ -1,12 +1,15 @@
 const User = require('../models/user')
-var jwt = require("jsonwebtoken")
-var expressJwt = require("express-jwt")
+const {validate} = require('../models/validate')
+const jwt = require("jsonwebtoken")
+const expressJwt = require("express-jwt")
 const { validationResult, check } = require('express-validator')
 //const user = require('../models/user')
 const moment = require('moment');
 //const {sendGridEmail, sendGridEmailResetPassword} = require('./emailsubscriber')
 const sendEmail = require('../helper/sendEmail')
 const Token = require('../models/token')
+const joi = require ('joi')
+const crypto = require('crypto')
 
 // API Key check
 // exports.apiAuth = (req, res, next) => {
@@ -26,6 +29,58 @@ const Token = require('../models/token')
 //   }
 // }
 
+exports.authMiddleWare = async (credentials = [])=>{
+try{
+return (req,res,next)=> {
+
+  if (typeof credentials === 'string'){
+    credentials = [credentials];
+  }
+    const token = req.headers['authorization'];
+    if(!token) {
+      return res.status(401).json({
+        success: false,
+        msg:"Access Was Denied"
+      })
+    } else {
+
+      // validate token
+
+      const tokenBody = token.slice(7)
+      jwt.verify(tokenBody, process.env.SECRET, (err, decoded) =>{
+        if(err){
+          console.log(`JWT ERROR: ${err}`)
+          return res.status(401).json({
+            success: false,
+            msg:"Error: Access Denied"
+          })
+        }
+      })
+
+      // check for credentials
+
+      if(credentials.length > 0){
+        if(decoded.scopes && decoded.scopes.length && credentials.some(cred => decoded.scopes.indexOf(cred)>= 0)){
+          next();
+        } else {
+          return res.status(401).json({
+            success: false,
+            msg:`Error: Access Denied`
+          })
+        }
+      } else {
+        // no credentials required, user is authenticated
+        next();
+      }
+     
+    }
+}
+} catch (error){
+  console.log(error)
+}
+}
+
+
 exports.signup = (req, res) => {
   const errors = validationResult(req)
 
@@ -37,7 +92,7 @@ exports.signup = (req, res) => {
 
   // Check whether email already exists
   const {email} = req.body
-  User.findOne({email}, async (err, email) => {
+  User.findOne({email: email}, async (err, email) => {
     if(err || email) {
       return res.status(403).json({
         error: "Email already exists"
@@ -51,7 +106,7 @@ exports.signup = (req, res) => {
       isVerified: false
     })
     const token = await new Token({
-      token: Math.random().toString(36).slice(2),
+      token: Math.random().toString(36).substring(2, 12),
       isUsed: false,
       email: req.body.email,
       expiryDate: moment(new Date()).add(30, 'm').toDate()
@@ -92,34 +147,34 @@ exports.signup = (req, res) => {
 
   })
 }
-// exports.verifyToken = async (req,res) =>{
-//   let token = req.query.token;
-//   let check = await Token.findOne({
-//     token: token,
-//   });
-//   console.log(check);
-//   if(!check){
-//     res.status(400).json({
-//       message: "Token not found in the Database"
-//     })
-//   }
+exports.verifyToken = async (req,res) =>{
+  let token = req.query.token;
+  let check = await Token.findOne({
+    token: token,
+  });
+  console.log(check);
+  if(!check){
+    res.status(400).json({
+      message: "Token not found in the Database"
+    })
+  }
 
-//   if(check.expiryDate < new Date()){
-//     res.status(400).json({
-//       message:"Token expired. Sign up Again"
-//     })
-//   }
-//   await User.findOne({
-//     email: check.email
-//   }).updateOne({
-//     isVerified: true
-//   });
-//   await Token.findByIdAndRemove(check._id);
+  if(check.expiryDate < new Date()){
+    res.status(400).json({
+      message:"Token expired. Sign up Again"
+    })
+  }
+  await User.findOne({
+    email: check.email
+  }).updateOne({
+    isVerified: true
+  });
+  await Token.findByIdAndRemove(check._id);
 
-//   return res.status(200).send({
-//     message: "User verified successfully"
-//   });
-// }
+  return res.status(200).send({
+    message: "User verified successfully"
+  });
+}
 
 exports.signin = (req, res) => {
   const {email, password} = req.body
@@ -400,36 +455,115 @@ exports.signout = (req, res) => {
 //   })
 // }
 
+// exports.forgotPassWord = async (req,res) =>{
+//   try{
+//   const {email} = req.body;
+//   const user =  await User.findOne({email});
+
+//   if(!user){
+//     res.status(400).json({
+//       success: false,
+//       error: "No user with this email found"
+//     })
+//   }
+//     const url = `http://localhost:3476/api/createNewPassWord/${user._id}`
+
+//     const body = `</div><p style="font-size:1.1em">Hi, ${user.firstname}</p><p>We received a request to reset your password for your BUSA account:${user.email}. We're here to help. Simply click on the button to set a new password </p><h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;"><a href=${url}>Click here </a><br/><p>if you didn't ask to change your password, don't worry! Your password is still safe and you can delete this email</p></h2><p style="font-size:0.9em;">Regards,<br />Your Brand</p><hr style="border:none;border-top:1px solid #eee" /><div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300"><p>In Patnership with <a href="www.light.io">Light.io</a></p></div></div></div>`; 
+
+//   sendEmail(user.email,body,"Reset your BUSA App password")
+
+//   res.status(200).json({
+//     success: true,
+//     msg:"An email has been sent to you"
+//   })
+// } catch (error){
+//   console.log(error)
+//   res.status(500).json({
+//     status: 500,
+//     error:"Internal Error occured"
+//   })
+// }
+// }
+
+
 exports.forgotPassWord = async (req,res) =>{
   try{
-  const {email} = req.body;
-  const user =  await User.findOne({email});
-
-  if(!user){
-    res.status(400).json({
+    const schema = joi.object({email: joi.string().email().required()});
+    const {error} = schema.validate(req.body);
+    if(error) return res.status(400).json({
       success: false,
-      error: "No user with this email found"
+      msg : error.details[0].message
+    })
+
+    const user = await User.findOne({email: req.body.email});
+    if(!user) return res.status(400).json({
+      success: false,
+      msg:"User with given email does not exist"
+    });
+
+
+    let token = await Token.findOne({userId: user._id});
+    if(!token){
+      token = await new Token({
+        token: Math.random().toString(36).substring(2, 12),
+        isUsed: false,
+        email: req.body.email,
+        expiryDate: moment(new Date()).add(30, 'm').toDate()
+      }).save()
+    }
+
+    const link = `http://localhost:6521/api/password-reset/${user._id}/${token.token}`
+    await sendEmail(user.email, link, "password reset")
+
+    res.status(200).json({
+      success: true,
+      msg:"Password reset link sent to your email"
+    })
+  } catch (error){
+    console.log(error)
+    res.status(500).json({
+      success: false,
+      msg:"Internal error occured"
     })
   }
-    const url = `http://localhost:3476/api/createNewPassWord/${user._id}`
-
-    const body = `</div><p style="font-size:1.1em">Hi, ${user.firstname}</p><p>We received a request to reset your password for your BUSA account:${user.email}. We're here to help. Simply click on the button to set a new password </p><h2 style="background: #00466a;margin: 0 auto;width: max-content;padding: 0 10px;color: #fff;border-radius: 4px;"><a href=${url}>Click here </a><br/><p>if you didn't ask to change your password, don't worry! Your password is still safe and you can delete this email</p></h2><p style="font-size:0.9em;">Regards,<br />Your Brand</p><hr style="border:none;border-top:1px solid #eee" /><div style="float:right;padding:8px 0;color:#aaa;font-size:0.8em;line-height:1;font-weight:300"><p>In Patnership with <a href="www.light.io">Light.io</a></p></div></div></div>`; 
-
-  sendEmail(user.email,body,"Reset your BUSA App password")
-
-  res.status(200).json({
-    success: true,
-    msg:"An email has been sent to you"
-  })
-} catch (error){
-  console.log(error)
-  res.status(500).json({
-    status: 500,
-    error:"Internal Error occured"
-  })
+  
 }
-}
-exports.createNewPassWord = async (req,res) =>{
+
+exports.resetPassWord = async (req,res) =>{
+  // try {
+  //   const schema = joi.object({password: joi.string().required()})
+  //   const {error} = schema.validate(req.body);
+  //   if(error) return res.status(400).json({
+  //     success: false,
+  //     msg: error.details[0].message
+  //   })
+  //   const token = await Token.findOne({
+  //     userId: user._id,
+  //     token: req.params.token
+  //   });
+
+  //   if(!token) return res.status(400).json({
+  //     success: false,
+  //     msg:"Invalid link or Token"
+  //   })
+
+  //   user.password = req.body.password
+  //   await user.save();
+  //   await token.delete();
+
+  //   res.status(200).json({
+  //     success: true,
+  //     msg:"Password reset sucess"
+  //   })
+  // } catch (error) {
+  //   console.log(error)
+  //   res.status(500).json({
+  //     success: false,
+  //     msg:"Internal Error Occured"
+  //   })
+  // }
+
+
   try {
 
     const user = await User.findByIdAndUpdate(req.params.userId, req.body, {

@@ -13,7 +13,8 @@ const notificationRoute = require('./routes/notification')
 const ticketRoute = require('./routes/tickets')
 const payRoute = require('./routes/pay')
 //const fetch = require('node-fetch')
-require("dotenv").config();
+require('dotenv').config()
+
 
 // DB Connection
 mongoose
@@ -41,8 +42,9 @@ app.use(formData.parse());
 // Basic Testing Purposes
 app.get("/", (req, res) => {
   res.json({
-    message:
-      "Hello World! User Authentication API developed by Rajsuthan, my website URL: https://raj-dev.netlify.app/",
+    author: "David Ezeh",
+    stack: ["Nodejs", "Mongodb", "express"],
+    project_name: "Busa auth"
   });
 });
 
@@ -63,7 +65,7 @@ app.use('/api/notification',notificationRoute);
 app.use('/api/tickets',ticketRoute)
 app.use('/api/paystack',payRoute)
 // PORT
-const port = process.env.PORT || 8000;
+const port = 6521;
 
 // Starting a server
 app.listen(port, () => {

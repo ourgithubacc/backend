@@ -1,4 +1,4 @@
-const user = require("../models/user");
+//const user = require("../models/user");
 const User = require("../models/user");
 
 // exports.getUserById = (req, res, next, id) => {
@@ -92,23 +92,40 @@ exports.updateUser = async (req,res,next) =>{
 }
 
 
-exports.getAllUsers = async (req, res) => {
-
-  const users = await User.find()
+exports.getAllUsers = async (req, res) => { 
   try{
-
+     await User.find({}, (err,users)=>{
     if(users) {
-      res.status(200).json({
-        success: true,
-        users
-      })
-    } else{
-      res.status(400).json({
-        success: false,
-        msg:"Unable to get users"
-      })
-    }
+    res.status(200).json({
+      success: true,
+      users
+    })
+  } else{
+    res.status(400).json({
+      success: false,
+      msg:"Unable to get users"
+    })
+  }
+    })
+
+
+//   await User.find({},(err,users)=>{
+
+//     if (err){
+//     return  res.status(422).send(err)
+//     }
+
+//     if (!users){
+//         return res.status(422).send({error:"No data in the collection"})
+//     }
+
+//     res.send({Allusers:users})
+
+// })
+  
+
   } catch (error){
+    console.log(error)
     res.status(500).json({
       success: false,
       msg: 'Internal Error Occured'
@@ -135,7 +152,7 @@ exports.deleteUser = async (req,res,next) =>{
       }
       
   } catch (error) {
-      
+
           res.status(500).json({
               success: false,
               msg: 'Internal Error Occured'

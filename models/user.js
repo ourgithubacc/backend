@@ -3,6 +3,8 @@ const crypto = require("crypto");
 const uuidv1 = require("uuid/v1");
 const { ObjectId } = mongoose.Schema;
 
+
+
 const userSchema = new mongoose.Schema(
   {
     firstname: {
@@ -76,3 +78,5 @@ userSchema.methods = {
 };
 
 module.exports = mongoose.model("User", userSchema);
+
+
